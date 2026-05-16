@@ -200,7 +200,11 @@ class HabitsSidebarView extends ItemView {
 	}
 
 	getDisplayText(): string {
-		return "Habits Panel";
+		return "Habits";
+	}
+
+	getIcon(): string {
+		return "calendar-heart";
 	}
 
 	async onOpen() {
