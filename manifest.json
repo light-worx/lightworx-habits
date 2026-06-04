@@ -1,7 +1,7 @@
 {
 	"id": "lightworx-habits",
 	"name": "Habits",
-	"version": "0.3.0",
+	"version": "0.3.1",
 	"minAppVersion": "0.15.0",
 	"description": "Lightworx habit tracker.",
 	"author": "Michael Bishop",

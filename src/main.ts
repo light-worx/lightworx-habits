@@ -10,7 +10,6 @@ import {
 
 const VIEW_TYPE_HABITS = "lightworx-habits-sidebar";
 
-// Define the shape of our plugin data
 interface HabitsPluginSettings {
 	habitsList: string[];
 	startDate: string;
@@ -18,7 +17,7 @@ interface HabitsPluginSettings {
 
 const DEFAULT_SETTINGS: HabitsPluginSettings = {
 	habitsList: ["Workout", "Meditation", "Reading", "Coding"],
-	startDate: "2026-01-01" // Default fallback start date
+	startDate: "2026-01-01"
 }
 
 export default class HabitsPlugin extends Plugin {
@@ -27,26 +26,21 @@ export default class HabitsPlugin extends Plugin {
 	async onload() {
 		await this.loadSettings();
 
-		// 1. Register Sidebar View
 		this.registerView(
 			VIEW_TYPE_HABITS,
 			(leaf) => new HabitsSidebarView(leaf, this)
 		);
 
-		// FIX: Using a reliable native Obsidian Lucide icon string 'calendar-heart'
 		this.addRibbonIcon('calendar-heart', 'Open Habits Tracker', () => {
 			this.activateView();
 		});
 
-		// 2. Register Heatmap Codeblock
 		this.registerMarkdownCodeBlockProcessor("habit-heatmap", (source, el, ctx) => {
 			this.renderHeatmap(el);
 		});
 
-		// Add Settings Tab
 		this.addSettingTab(new HabitsSettingTab(this.app, this));
 
-		// Global layout listener to sync data updates
 		this.registerEvent(this.app.workspace.on('layout-change', () => {
 			const leaves = this.app.workspace.getLeavesOfType(VIEW_TYPE_HABITS);
 			leaves.forEach(leaf => {
@@ -63,7 +57,6 @@ export default class HabitsPlugin extends Plugin {
 
 	async saveSettings() {
 		await this.saveData(this.settings);
-		// Refresh views dynamically when settings change
 		this.app.workspace.trigger("layout-change");
 	}
 
@@ -81,7 +74,10 @@ export default class HabitsPlugin extends Plugin {
 		if (leaf) workspace.revealLeaf(leaf);
 	}
 
-	getTodayNotePath(): string {
+	/**
+	 * Returns the vault path for a given moment date object.
+	 */
+	getNotePathForDate(momentDate: any): string {
 		let format = "YYYY-MM-DD";
 		let folder = "";
 
@@ -91,8 +87,44 @@ export default class HabitsPlugin extends Plugin {
 			folder = dailyNotesSetting.folder || folder;
 		}
 
-		const fileName = (window as any).moment().format(format) + ".md";
+		const fileName = momentDate.format(format) + ".md";
 		return normalizePath(folder ? `${folder}/${fileName}` : fileName);
+	}
+
+	/**
+	 * Convenience: path for today's daily note.
+	 */
+	getTodayNotePath(): string {
+		const moment = (window as any).moment;
+		return this.getNotePathForDate(moment());
+	}
+
+	/**
+	 * Calculate the current streak for a given habit key (e.g. "habit-workout").
+	 * Walks backwards from today counting consecutive completed days.
+	 */
+	getStreak(key: string): number {
+		const moment = (window as any).moment;
+		const files = this.app.vault.getMarkdownFiles();
+		const dailyNotesSetting = (this.app as any).internalPlugins?.plugins?.["daily-notes"]?.instance?.options;
+		const format = dailyNotesSetting?.format || "YYYY-MM-DD";
+
+		let streak = 0;
+		let current = moment().startOf('day');
+
+		while (true) {
+			const baseName = current.format(format);
+			const file = files.find(f => f.basename === baseName);
+			if (!file) break;
+			const cache = this.app.metadataCache.getFileCache(file);
+			if (cache?.frontmatter?.[key] === true) {
+				streak++;
+				current.subtract(1, 'day');
+			} else {
+				break;
+			}
+		}
+		return streak;
 	}
 
 	renderHeatmap(el: HTMLElement) {
@@ -107,10 +139,9 @@ export default class HabitsPlugin extends Plugin {
 		const dailyNotesSetting = (this.app as any).internalPlugins?.plugins?.["daily-notes"]?.instance?.options;
 		const format = dailyNotesSetting?.format || "YYYY-MM-DD";
 
-		// Generate the matrix row by row for each habit
 		this.settings.habitsList.forEach(habit => {
 			const row = container.createDiv({ cls: "matrix-row" });
-			row.createDiv({ cls: "matrix-label", text: habit }); // Habit Name Column
+			row.createDiv({ cls: "matrix-label", text: habit });
 			
 			const grid = row.createDiv({ cls: "matrix-grid" });
 			const key = `habit-${habit.toLowerCase().replace(/\s+/g, '-')}`;
@@ -138,7 +169,7 @@ export default class HabitsPlugin extends Plugin {
 }
 
 /**
- * Settings Tab Component
+ * Settings Tab
  */
 class HabitsSettingTab extends PluginSettingTab {
 	plugin: HabitsPlugin;
@@ -154,7 +185,6 @@ class HabitsSettingTab extends PluginSettingTab {
 
 		containerEl.createEl('h2', { text: 'Habit Tracker Settings' });
 
-		// 1. Start Date Setting
 		new Setting(containerEl)
 			.setName('Start Date')
 			.setDesc('Track and visualize historical daily notes beginning from this date (YYYY-MM-DD)')
@@ -166,7 +196,6 @@ class HabitsSettingTab extends PluginSettingTab {
 					await this.plugin.saveSettings();
 				}));
 
-		// 2. Habits List Setting
 		new Setting(containerEl)
 			.setName('Tracked Habits')
 			.setDesc('Comma-separated list of habits you want to track (e.g. Workout, Meditation, Reading)')
@@ -174,7 +203,6 @@ class HabitsSettingTab extends PluginSettingTab {
 				.setPlaceholder('Workout, Meditation, Reading')
 				.setValue(this.plugin.settings.habitsList.join(', '))
 				.onChange(async (value) => {
-					// Clean up spaces and split items into an array
 					this.plugin.settings.habitsList = value
 						.split(',')
 						.map(h => h.trim())
@@ -185,30 +213,30 @@ class HabitsSettingTab extends PluginSettingTab {
 }
 
 /**
- * Sidebar View Component
+ * Sidebar View — with date navigation
  */
 class HabitsSidebarView extends ItemView {
 	plugin: HabitsPlugin;
+	/** Offset in days from today. 0 = today, -1 = yesterday, etc. */
+	private dayOffset: number = 0;
 
 	constructor(leaf: WorkspaceLeaf, plugin: HabitsPlugin) {
 		super(leaf);
 		this.plugin = plugin;
 	}
 
-	getViewType(): string {
-		return VIEW_TYPE_HABITS;
-	}
+	getViewType(): string { return VIEW_TYPE_HABITS; }
+	getDisplayText(): string { return "Habits Panel"; }
+	getIcon(): string { return "calendar-heart"; }
 
-	getDisplayText(): string {
-		return "Habits";
-	}
+	async onOpen() { this.updateView(); }
 
-	getIcon(): string {
-		return "calendar-heart";
-	}
-
-	async onOpen() {
-		this.updateView();
+	/**
+	 * Returns a moment object for the currently viewed date.
+	 */
+	private getViewedDate() {
+		const moment = (window as any).moment;
+		return moment().startOf('day').add(this.dayOffset, 'days');
 	}
 
 	async updateView() {
@@ -216,20 +244,70 @@ class HabitsSidebarView extends ItemView {
 		container.empty();
 		container.addClass("lightworx-habits-sidebar-container");
 
-		container.createEl("h3", { text: "Today's Habits" });
+		const moment = (window as any).moment;
+		const viewedDate = this.getViewedDate();
+		const isToday = this.dayOffset === 0;
+		const isFuture = this.dayOffset > 0;
 
-		const todayPath = this.plugin.getTodayNotePath();
-		const file = this.app.vault.getAbstractFileByPath(todayPath);
+		// ── Header with navigation ────────────────────────────────────────────
+		const header = container.createDiv({ cls: "habits-header" });
+
+		const prevBtn = header.createEl("button", { cls: "habits-nav-btn", attr: { "aria-label": "Previous day" } });
+		prevBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>`;
+		prevBtn.addEventListener("click", () => { this.dayOffset--; this.updateView(); });
+
+		const dateInfo = header.createDiv({ cls: "habits-date-info" });
+		
+		// Primary label
+		let label: string;
+		if (isToday) label = "Today";
+		else if (this.dayOffset === -1) label = "Yesterday";
+		else if (this.dayOffset === 1) label = "Tomorrow";
+		else label = viewedDate.format("ddd, D MMM");
+		
+		dateInfo.createEl("span", { cls: "habits-date-label", text: label });
+		dateInfo.createEl("span", { cls: "habits-date-sub", text: viewedDate.format("YYYY-MM-DD") });
+
+		// Jump-to-today button (only visible when not on today)
+		if (!isToday) {
+			const todayBtn = header.createEl("button", { cls: "habits-today-btn", text: "Today", attr: { "aria-label": "Jump to today" } });
+			todayBtn.addEventListener("click", () => { this.dayOffset = 0; this.updateView(); });
+		} else {
+			// Placeholder to keep layout stable
+			header.createEl("button", { cls: "habits-today-btn habits-today-btn--hidden", text: "Today" });
+		}
+
+		const nextBtn = header.createEl("button", { cls: `habits-nav-btn ${isToday ? 'habits-nav-btn--disabled' : ''}`, attr: { "aria-label": "Next day" } });
+		nextBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>`;
+		if (isToday) {
+			nextBtn.setAttribute("disabled", "true");
+		} else {
+			nextBtn.addEventListener("click", () => { this.dayOffset++; this.updateView(); });
+		}
+
+		// ── Divider ───────────────────────────────────────────────────────────
+		container.createDiv({ cls: "habits-divider" });
+
+		// ── Future date guard ─────────────────────────────────────────────────
+		if (isFuture) {
+			container.createDiv({ cls: "habit-notice", text: "You can't log habits for future dates." });
+			return;
+		}
+
+		// ── Resolve the daily note for the viewed date ────────────────────────
+		const notePath = this.plugin.getNotePathForDate(viewedDate);
+		const file = this.app.vault.getAbstractFileByPath(notePath);
 
 		let frontmatter: Record<string, any> = {};
 		if (file && file instanceof TFile) {
 			const cache = this.app.metadataCache.getFileCache(file);
 			frontmatter = cache?.frontmatter || {};
 		} else {
-			container.createDiv({ cls: "habit-notice", text: "Today's daily note hasn't been created yet." });
-			const createBtn = container.createEl("button", { text: "Create Daily Note" });
+			const dateLabel = isToday ? "today" : viewedDate.format("YYYY-MM-DD");
+			container.createDiv({ cls: "habit-notice", text: `No daily note found for ${dateLabel}.` });
+			const createBtn = container.createEl("button", { cls: "habits-create-btn", text: `Create Note` });
 			createBtn.addEventListener("click", async () => {
-				await this.app.vault.create(todayPath, "---\n---\n");
+				await this.app.vault.create(notePath, "---\n---\n");
 				this.updateView();
 			});
 			return;
@@ -240,24 +318,63 @@ class HabitsSidebarView extends ItemView {
 			return;
 		}
 
+		// ── Habit rows ────────────────────────────────────────────────────────
+		const list = container.createDiv({ cls: "habits-list" });
+
 		this.plugin.settings.habitsList.forEach(habit => {
-			// Convert "Read Book" into frontmatter standard lookup key format: "habit-read-book"
 			const key = `habit-${habit.toLowerCase().replace(/\s+/g, '-')}`;
 			const isChecked = frontmatter[key] === true;
+			const streak = this.plugin.getStreak(key);
 
-			const row = container.createDiv({ cls: "habit-row" });
-			const checkbox = row.createEl("input", { type: "checkbox" });
+			const row = list.createDiv({ cls: `habit-row ${isChecked ? 'habit-row--checked' : ''}` });
+
+			// Custom checkbox
+			const checkWrap = row.createDiv({ cls: "habit-check-wrap" });
+			const checkbox = checkWrap.createEl("input", { type: "checkbox", cls: "habit-checkbox" });
+			checkbox.id = `habit-cb-${key}`;
 			checkbox.checked = isChecked;
-			
-			row.createEl("label", { text: habit });
+
+			const checkVisual = checkWrap.createDiv({ cls: "habit-check-visual" });
+			checkVisual.innerHTML = `<svg viewBox="0 0 12 10" fill="none" xmlns="http://www.w3.org/2000/svg"><polyline points="1.5,5 4.5,8.5 10.5,1.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+
+			// Label + streak
+			const labelWrap = row.createDiv({ cls: "habit-label-wrap" });
+			const lbl = labelWrap.createEl("label", { cls: "habit-label", text: habit });
+			lbl.setAttribute("for", `habit-cb-${key}`);
+
+			if (streak > 0) {
+				const streakEl = labelWrap.createEl("span", { cls: "habit-streak" });
+				streakEl.innerHTML = `🔥 ${streak}`;
+			}
 
 			checkbox.addEventListener("change", async (e) => {
 				const target = e.target as HTMLInputElement;
+				row.toggleClass("habit-row--checked", target.checked);
 				await this.app.fileManager.processFrontMatter(file as TFile, (fm) => {
 					fm[key] = target.checked;
 				});
 				setTimeout(() => this.plugin.app.workspace.trigger("layout-change"), 100);
 			});
+
+			// Clicking the visual also toggles
+			checkVisual.addEventListener("click", () => {
+				checkbox.click();
+			});
 		});
+
+		// ── Completion summary ────────────────────────────────────────────────
+		const total = this.plugin.settings.habitsList.length;
+		const done = this.plugin.settings.habitsList.filter(habit => {
+			const key = `habit-${habit.toLowerCase().replace(/\s+/g, '-')}`;
+			return frontmatter[key] === true;
+		}).length;
+
+		const summary = container.createDiv({ cls: "habits-summary" });
+		const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+		summary.createEl("span", { cls: "habits-summary-text", text: `${done} / ${total} complete` });
+		const bar = summary.createDiv({ cls: "habits-progress-bar" });
+		const fill = bar.createDiv({ cls: "habits-progress-fill" });
+		fill.style.width = `${pct}%`;
+		if (pct === 100) fill.addClass("habits-progress-fill--complete");
 	}
 }

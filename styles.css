@@ -1,42 +1,295 @@
-/* Sidebar View Elements */
+/* ═══════════════════════════════════════════════════════════
+   Lightworx Habits — Sidebar Styles
+   ═══════════════════════════════════════════════════════════ */
+
+/* ── Container ─────────────────────────────────────────────── */
 .lightworx-habits-sidebar-container {
-    padding: 15px;
+    padding: 12px 14px 16px;
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 0;
 }
 
-.lightworx-habits-sidebar-container h3 {
-    margin-bottom: 8px;
-    border-bottom: 1px solid var(--background-modifier-border);
-    padding-bottom: 5px;
+/* ── Header: nav arrows + date display ─────────────────────── */
+.habits-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+    padding: 4px 0 10px;
 }
 
+.habits-date-info {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex: 1;
+    min-width: 0;
+}
+
+.habits-date-label {
+    font-size: 1em;
+    font-weight: 600;
+    color: var(--text-normal);
+    line-height: 1.2;
+}
+
+.habits-date-sub {
+    font-size: 0.72em;
+    color: var(--text-muted);
+    letter-spacing: 0.03em;
+    margin-top: 1px;
+}
+
+/* Navigation arrow buttons */
+.habits-nav-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    padding: 0;
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 6px;
+    background: var(--background-secondary);
+    color: var(--text-muted);
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.habits-nav-btn svg {
+    width: 13px;
+    height: 13px;
+}
+
+.habits-nav-btn:hover:not([disabled]) {
+    background: var(--background-modifier-hover);
+    color: var(--text-normal);
+    border-color: var(--interactive-accent);
+}
+
+.habits-nav-btn--disabled,
+.habits-nav-btn[disabled] {
+    opacity: 0.3;
+    cursor: not-allowed;
+}
+
+/* Jump-to-today pill */
+.habits-today-btn {
+    font-size: 0.68em;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 10px;
+    border: 1px solid var(--interactive-accent);
+    background: transparent;
+    color: var(--interactive-accent);
+    cursor: pointer;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    transition: background 0.15s ease, color 0.15s ease;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.habits-today-btn:hover {
+    background: var(--interactive-accent);
+    color: var(--text-on-accent);
+}
+
+.habits-today-btn--hidden {
+    visibility: hidden;
+    pointer-events: none;
+}
+
+/* ── Divider ────────────────────────────────────────────────── */
+.habits-divider {
+    height: 1px;
+    background: var(--background-modifier-border);
+    margin-bottom: 10px;
+}
+
+/* ── Notice / empty state ───────────────────────────────────── */
+.habit-notice {
+    font-style: italic;
+    font-size: 0.88em;
+    color: var(--text-muted);
+    margin: 8px 0 10px;
+    line-height: 1.5;
+}
+
+.habits-create-btn {
+    margin-top: 4px;
+    padding: 5px 14px;
+    font-size: 0.85em;
+    font-weight: 500;
+    border-radius: 6px;
+    border: 1px solid var(--background-modifier-border);
+    background: var(--background-secondary);
+    color: var(--text-normal);
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.habits-create-btn:hover {
+    background: var(--background-modifier-hover);
+    border-color: var(--interactive-accent);
+}
+
+/* ── Habits list ────────────────────────────────────────────── */
+.habits-list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin-bottom: 12px;
+}
+
+/* ── Individual habit row ───────────────────────────────────── */
 .habit-row {
     display: flex;
     align-items: center;
     gap: 10px;
-    padding: 6px 0;
-}
-
-.habit-row input[type="checkbox"] {
+    padding: 7px 8px;
+    border-radius: 7px;
     cursor: pointer;
-    width: 16px;
-    height: 16px;
+    transition: background 0.12s ease;
 }
 
-.habit-row label {
-    cursor: pointer;
-    font-size: 1.1em;
+.habit-row:hover {
+    background: var(--background-secondary);
 }
 
-.habit-notice {
-    font-style: italic;
+.habit-row--checked .habit-label {
     color: var(--text-muted);
-    margin-bottom: 8px;
+    text-decoration: line-through;
+    text-decoration-color: var(--text-muted);
 }
 
-/* Heatmap Grid elements */
+/* ── Custom checkbox ────────────────────────────────────────── */
+.habit-check-wrap {
+    position: relative;
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+}
+
+/* Hide the native checkbox but keep it interactive */
+.habit-checkbox {
+    position: absolute;
+    opacity: 0;
+    width: 18px;
+    height: 18px;
+    margin: 0;
+    cursor: pointer;
+    z-index: 1;
+}
+
+/* The visual box */
+.habit-check-visual {
+    position: absolute;
+    inset: 0;
+    border-radius: 5px;
+    border: 2px solid var(--background-modifier-border);
+    background: var(--background-primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s ease, border-color 0.15s ease, transform 0.12s ease;
+    pointer-events: none;
+}
+
+.habit-check-visual svg {
+    width: 10px;
+    height: 10px;
+    color: var(--text-on-accent);
+    opacity: 0;
+    transform: scale(0.5);
+    transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+/* Checked state */
+.habit-checkbox:checked ~ .habit-check-visual {
+    background: var(--interactive-accent);
+    border-color: var(--interactive-accent);
+}
+
+.habit-checkbox:checked ~ .habit-check-visual svg {
+    opacity: 1;
+    transform: scale(1);
+}
+
+/* Focus ring */
+.habit-checkbox:focus-visible ~ .habit-check-visual {
+    outline: 2px solid var(--interactive-accent);
+    outline-offset: 2px;
+}
+
+/* ── Label + streak ─────────────────────────────────────────── */
+.habit-label-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
+    min-width: 0;
+}
+
+.habit-label {
+    font-size: 0.95em;
+    color: var(--text-normal);
+    cursor: pointer;
+    transition: color 0.12s ease;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.habit-streak {
+    font-size: 0.72em;
+    color: var(--text-muted);
+    white-space: nowrap;
+    flex-shrink: 0;
+    letter-spacing: 0.01em;
+}
+
+/* ── Progress summary ───────────────────────────────────────── */
+.habits-summary {
+    margin-top: auto;
+    padding-top: 10px;
+    border-top: 1px solid var(--background-modifier-border);
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.habits-summary-text {
+    font-size: 0.75em;
+    color: var(--text-muted);
+    font-weight: 500;
+    letter-spacing: 0.03em;
+}
+
+.habits-progress-bar {
+    height: 4px;
+    background: var(--background-modifier-border);
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.habits-progress-fill {
+    height: 100%;
+    background: var(--interactive-accent);
+    border-radius: 2px;
+    transition: width 0.3s ease;
+}
+
+.habits-progress-fill--complete {
+    background: var(--color-green, #4caf50);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   Heatmap / Matrix (codeblock renderer)
+   ═══════════════════════════════════════════════════════════ */
+
 .habit-heatmap-container {
     padding: 15px;
     background-color: var(--background-secondary);
@@ -66,7 +319,6 @@
     transition: background-color 0.15s ease;
 }
 
-/* Color scaling adjustments using current theme accents */
 .heatmap-day.level-1 { background-color: rgba(var(--interactive-accent-rgb), 0.25); }
 .heatmap-day.level-2 { background-color: rgba(var(--interactive-accent-rgb), 0.5); }
 .heatmap-day.level-3 { background-color: rgba(var(--interactive-accent-rgb), 0.75); }
@@ -78,44 +330,58 @@
     z-index: 10;
 }
 
-/* Settings view adjustments */
-.setting-item textarea {
-    width: 100%;
-    height: 80px;
-    resize: vertical;
-}
-
+/* ── Matrix grid ─────────────────────────────────────────────── */
 .habit-matrix-container {
     padding: 15px;
     background-color: var(--background-secondary);
     border-radius: 8px;
     border: 1px solid var(--background-modifier-border);
 }
+
 .matrix-row {
     display: flex;
     align-items: center;
     margin-bottom: 8px;
 }
+
 .matrix-label {
-    width: 100px; /* Aligns the grids perfectly */
+    width: 100px;
     font-size: 0.9em;
-    font-weight: bold;
+    font-weight: 600;
     text-overflow: ellipsis;
     overflow: hidden;
     white-space: nowrap;
+    color: var(--text-muted);
 }
+
 .matrix-grid {
     display: flex;
+    flex-wrap: wrap;
     gap: 3px;
 }
+
 .matrix-day {
     width: 12px;
     height: 12px;
     border-radius: 2px;
+    transition: transform 0.1s ease;
 }
+
+.matrix-day:hover {
+    transform: scale(1.3);
+}
+
 .matrix-day.empty {
     background-color: var(--background-modifier-border);
 }
+
 .matrix-day.completed {
     background-color: var(--interactive-accent);
+}
+
+/* ── Settings ────────────────────────────────────────────────── */
+.setting-item textarea {
+    width: 100%;
+    height: 80px;
+    resize: vertical;
 }
